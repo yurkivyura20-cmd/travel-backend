@@ -3,71 +3,67 @@ const cors = require("cors");
 const admin = require("firebase-admin");
 
 const app = express();
-
-// Налаштування CORS для доступу з localhost
 app.use(cors());
 app.use(express.json());
 
-// Ініціалізація Firebase через змінні оточення
+// Ініціалізація Firebase
 try {
   if (process.env.FIREBASE_KEY) {
-    const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
-    admin.initializeApp({
-      credential: admin.credential.cert(firebaseKey)
-    });
-    console.log("✅ Firebase успішно ініціалізовано");
+    // Очищаємо ключ від можливих зайвих символів або проблем із переносом рядків
+    const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+    
+    // Додаткова перевірка формату приватного ключа
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log("✅ Firebase успішно підключено");
+    }
   } else {
-    console.error("❌ Помилка: FIREBASE_KEY не знайдено в Environment Variables");
+    console.error("❌ FIREBASE_KEY не знайдено!");
   }
 } catch (error) {
-  console.error("❌ Помилка парсингу Firebase Key:", error.message);
+  console.error("❌ Помилка ініціалізації ключа:", error.message);
 }
 
 const db = admin.firestore();
 
 // Тестовий маршрут
 app.get("/", (req, res) => {
-  res.send("Сервер працює! Використовуйте /api/trips");
+  res.send("Сервер Render працює!");
 });
 
-// Основний маршрут (Варіант 24)
+// Основний маршрут для Варіанта 24
 app.get("/api/trips", async (req, res) => {
   try {
-    console.log("--- Отримано запит на /api/trips ---");
-    
-    // ВАЖЛИВО: Перевір, щоб назва колекції в Firebase була саме "destinations"
+    // Переконайся, що в Firebase колекція називається саме "destinations"
     const snapshot = await db.collection("destinations").get();
     
     if (snapshot.empty) {
-      console.log("⚠️ Колекція порожня або назва вказана невірно");
+      console.log("⚠️ Колекція порожня");
       return res.json([]);
     }
 
-    let trips = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return { 
-        id: doc.id, 
-        ...data,
-        // Захист від помилок: перетворюємо ціну на число
-        price: Number(data.price) || 0 
-      };
-    });
+    let trips = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
     
-    // Сортування за ціною (Варіант 24)
-    trips.sort((a, b) => a.price - b.price); 
+    // Сортування за ціною
+    trips.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)); 
     
-    console.log(`✅ Успішно відправлено ${trips.length} подорожей`);
     res.json(trips);
   } catch (error) {
-    console.error("❌ ПОМИЛКА БАЗИ ДАНИХ:", error.message);
-    res.status(500).json({ 
-      error: "Internal Server Error", 
-      details: error.message 
-    });
+    console.error("❌ Помилка Firestore:", error.message);
+    res.status(500).json({ error: "Помилка бази даних", details: error.message });
   }
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущено на порту ${PORT}`);
+  console.log(`🚀 Сервер на порту ${PORT}`);
 });
