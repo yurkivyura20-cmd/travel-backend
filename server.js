@@ -1,8 +1,12 @@
 const express = require("express");
-const cors = require("cors");
+const cors = require("cors"); // ПЕРЕВІР ЦЕЙ РЯДОК
 const admin = require("firebase-admin");
 
-// Спроба зчитати ключ зі змінної оточення (для Render)
+const app = express();
+
+// ДОЗВОЛЯЄМО ЗАПИТИ З БУДЬ-ЯКИХ ДЖЕРЕЛ
+app.use(cors()); 
+app.use(express.json());
 try {
   const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
   
