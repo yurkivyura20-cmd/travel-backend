@@ -38,7 +38,7 @@ app.get("/", (req, res) => {
 app.get("/api/trips", async (req, res) => {
   try {
     // ТУТ ВИПРАВЛЕНО: тепер назва 'trips', як на твоєму скриншоті
-    const snapshot = await db.collection("trips").get();
+    const snapshot = await db.collection("destinations").get();
     
     if (snapshot.empty) {
       console.log("⚠️ Колекція 'trips' порожня");
