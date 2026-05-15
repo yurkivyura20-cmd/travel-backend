@@ -1,42 +1,53 @@
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
-const fs = require('fs');
 
-// Надійно зчитуємо файл ключа [cite: 285-286]
-const serviceAccount = JSON.parse(fs.readFileSync('./serviceAccountKey.json', 'utf8'));
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// Спроба зчитати ключ зі змінної оточення (для Render)
+try {
+  const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
+  
+  admin.initializeApp({
+    credential: admin.credential.cert(firebaseKey)
+  });
+  console.log("Firebase успішно ініціалізовано через Environment Variable");
+} catch (error) {
+  console.error("Помилка ініціалізації Firebase: Перевірте змінну FIREBASE_KEY в Render");
+}
 
 const db = admin.firestore();
 const app = express();
 
-// Налаштування Middleware [cite: 222-223]
 app.use(cors());
 app.use(express.json());
 
-// Варіант 24: Маршрут для отримання списку подорожей із сортуванням за ціною [cite: 673]
+// Головна сторінка (щоб не було "Cannot GET /")
+app.get("/", (req, res) => {
+  res.send("Сервер працює! Використовуйте /api/trips для отримання даних.");
+});
+
+// Маршрут для Варіанта 24 (Отримання та сортування за ціною)
 app.get("/api/trips", async (req, res) => {
   try {
     const snapshot = await db.collection("destinations").get();
-    let trips = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    let trips = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
     }));
     
-    // Сортування за ціною (від меншої до більшої)
-    trips.sort((a, b) => a.price - b.price);
+    // Сортування за ціною (від дешевих до дорогих)
+    trips.sort((a, b) => a.price - b.price); 
     
     res.json(trips);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: "Помилка бази даних", 
+      details: error.message 
+    });
   }
 });
 
-// Запуск сервера на порту 5000 [cite: 224-226]
-const PORT = 5000;
+// Використання порту від Render або 5000 локально
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Сервер запущено на порту ${PORT}`);
 });
