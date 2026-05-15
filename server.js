@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors"); // ПЕРЕВІР ЦЕЙ РЯДОК
 const admin = require("firebase-admin");
 
-const app = express();
 
 // ДОЗВОЛЯЄМО ЗАПИТИ З БУДЬ-ЯКИХ ДЖЕРЕЛ
 app.use(cors()); 
