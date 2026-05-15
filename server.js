@@ -32,17 +32,24 @@ app.get("/", (req, res) => {
 
 app.get("/api/trips", async (req, res) => {
   try {
-    const snapshot = await db.collection("destinations").get();
+    // ПЕРЕВІР НАЗВУ КОЛЕКЦІЇ ТУТ (має бути як у Firebase)
+    const snapshot = await db.collection("destinations").get(); 
+    
+    if (snapshot.empty) {
+      return res.json([]); // Повертаємо порожній список, якщо в базі нічого немає
+    }
+
     let trips = snapshot.docs.map(doc => ({ 
       id: doc.id, 
       ...doc.data() 
     }));
     
-    // Сортування для Варіанта 24
-    trips.sort((a, b) => a.price - b.price); 
+    // Сортування (додав перевірку на наявність ціни)
+    trips.sort((a, b) => (a.price || 0) - (b.price || 0)); 
     
     res.json(trips);
   } catch (error) {
+    console.error("Детальна помилка:", error);
     res.status(500).json({ error: "Помилка бази даних", details: error.message });
   }
 });
