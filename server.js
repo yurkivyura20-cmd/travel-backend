@@ -4,11 +4,11 @@ const admin = require("firebase-admin");
 
 const app = express();
 
-// Налаштування CORS (дозволяє запити з вашого localhost)
+// Налаштування CORS для доступу з localhost
 app.use(cors());
 app.use(express.json());
 
-// Ініціалізація Firebase через змінні оточення Render
+// Ініціалізація Firebase через змінні оточення
 try {
   if (process.env.FIREBASE_KEY) {
     const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
@@ -20,20 +20,22 @@ try {
     console.error("❌ Помилка: FIREBASE_KEY не знайдено в Environment Variables");
   }
 } catch (error) {
-  console.error("❌ Помилка парсингу JSON ключа:", error.message);
+  console.error("❌ Помилка парсингу Firebase Key:", error.message);
 }
 
 const db = admin.firestore();
 
-// Головна сторінка для перевірки
+// Тестовий маршрут
 app.get("/", (req, res) => {
-  res.send("Сервер працює! Використовуйте шлях /api/trips");
+  res.send("Сервер працює! Використовуйте /api/trips");
 });
 
-// Основний маршрут для отримання даних (Варіант 24)
+// Основний маршрут (Варіант 24)
 app.get("/api/trips", async (req, res) => {
   try {
-    // ВАЖЛИВО: Переконайся, що назва колекції "destinations" збігається з Firebase
+    console.log("--- Отримано запит на /api/trips ---");
+    
+    // ВАЖЛИВО: Перевір, щоб назва колекції в Firebase була саме "destinations"
     const snapshot = await db.collection("destinations").get();
     
     if (snapshot.empty) {
@@ -46,26 +48,25 @@ app.get("/api/trips", async (req, res) => {
       return { 
         id: doc.id, 
         ...data,
-        // Перетворюємо ціну на число, щоб сортування не ламалося
+        // Захист від помилок: перетворюємо ціну на число
         price: Number(data.price) || 0 
       };
     });
     
-    // Сортування за ціною (від найменшої до найбільшої)
+    // Сортування за ціною (Варіант 24)
     trips.sort((a, b) => a.price - b.price); 
     
-    console.log(`✅ Відправлено ${trips.length} подорожей`);
+    console.log(`✅ Успішно відправлено ${trips.length} подорожей`);
     res.json(trips);
   } catch (error) {
     console.error("❌ ПОМИЛКА БАЗИ ДАНИХ:", error.message);
     res.status(500).json({ 
-      error: "Помилка бази даних", 
+      error: "Internal Server Error", 
       details: error.message 
     });
   }
 });
 
-// Використання порту Render
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущено на порту ${PORT}`);
