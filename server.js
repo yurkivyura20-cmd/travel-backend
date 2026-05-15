@@ -2,59 +2,71 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 
-const app = express(); // Спочатку створюємо додаток
+const app = express();
 
-// Потім налаштовуємо CORS та JSON
-app.use(cors()); 
+// Налаштування CORS (дозволяє запити з вашого localhost)
+app.use(cors());
 app.use(express.json());
 
-// Потім ініціалізуємо Firebase
+// Ініціалізація Firebase через змінні оточення Render
 try {
   if (process.env.FIREBASE_KEY) {
     const firebaseKey = JSON.parse(process.env.FIREBASE_KEY);
     admin.initializeApp({
       credential: admin.credential.cert(firebaseKey)
     });
-    console.log("Firebase успішно ініціалізовано");
+    console.log("✅ Firebase успішно ініціалізовано");
   } else {
-    console.error("Змінна FIREBASE_KEY відсутня в налаштуваннях Render!");
+    console.error("❌ Помилка: FIREBASE_KEY не знайдено в Environment Variables");
   }
 } catch (error) {
-  console.error("Помилка парсингу FIREBASE_KEY:", error.message);
+  console.error("❌ Помилка парсингу JSON ключа:", error.message);
 }
 
 const db = admin.firestore();
 
-// Маршрути
+// Головна сторінка для перевірки
 app.get("/", (req, res) => {
-  res.send("Сервер працює! Перейдіть на /api/trips");
+  res.send("Сервер працює! Використовуйте шлях /api/trips");
 });
 
+// Основний маршрут для отримання даних (Варіант 24)
 app.get("/api/trips", async (req, res) => {
   try {
-    // ПЕРЕВІР НАЗВУ КОЛЕКЦІЇ ТУТ (має бути як у Firebase)
-    const snapshot = await db.collection("destinations").get(); 
+    // ВАЖЛИВО: Переконайся, що назва колекції "destinations" збігається з Firebase
+    const snapshot = await db.collection("destinations").get();
     
     if (snapshot.empty) {
-      return res.json([]); // Повертаємо порожній список, якщо в базі нічого немає
+      console.log("⚠️ Колекція порожня або назва вказана невірно");
+      return res.json([]);
     }
 
-    let trips = snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    }));
+    let trips = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return { 
+        id: doc.id, 
+        ...data,
+        // Перетворюємо ціну на число, щоб сортування не ламалося
+        price: Number(data.price) || 0 
+      };
+    });
     
-    // Сортування (додав перевірку на наявність ціни)
-    trips.sort((a, b) => (a.price || 0) - (b.price || 0)); 
+    // Сортування за ціною (від найменшої до найбільшої)
+    trips.sort((a, b) => a.price - b.price); 
     
+    console.log(`✅ Відправлено ${trips.length} подорожей`);
     res.json(trips);
   } catch (error) {
-    console.error("Детальна помилка:", error);
-    res.status(500).json({ error: "Помилка бази даних", details: error.message });
+    console.error("❌ ПОМИЛКА БАЗИ ДАНИХ:", error.message);
+    res.status(500).json({ 
+      error: "Помилка бази даних", 
+      details: error.message 
+    });
   }
 });
 
-const PORT = process.env.PORT || 5000;
+// Використання порту Render
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`Сервер запущено на порту ${PORT}`);
+  console.log(`🚀 Сервер запущено на порту ${PORT}`);
 });
